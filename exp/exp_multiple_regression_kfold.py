@@ -67,7 +67,7 @@ class Exp_Multiple_Regression_Fold(Exp_Basic):
         return device
 
     def _get_data(self, flag):
-        self.args.size = [self.args.max_seq_len]
+        self.args.size = [self.args.seq_len]
         if self.args.data_type == 'daily':
             if self.args.task_name == 'multiple_regression': # x->y
                 if flag == 'train':
@@ -167,9 +167,9 @@ class Exp_Multiple_Regression_Fold(Exp_Basic):
                 epoch_time = time.time()
                 for i, (batch_x, batch_y, time_gra, c_norm) in enumerate(train_loader):
                     self.args.c_norms = c_norm.float().to(self.device)
-                    #if i == 0: print(batch_x.shape, batch_y.shape)
+                    if i == 0: print(batch_x.shape, batch_y.shape)
                     model_optim.zero_grad()
-                    batch_x = [x.float().to(self.device) for x in batch_x] 
+                    batch_x = batch_x.float().to(self.device)
                     batch_y = batch_y.float().to(self.device)
 
                     if self.args.model == 'Path' or self.args.model == 'DUET':
@@ -189,17 +189,11 @@ class Exp_Multiple_Regression_Fold(Exp_Basic):
                     mask = torch.zeros(batch_y.shape, dtype=torch.bool)
                     if batch_y.isnan().sum() > 0:
                         mask = torch.isnan(batch_y)
-                    if mask.all():
-    
-                        continue
 
                     if self.args.loss == 'MSE_with_weak':
                         tau_hat = torch.sigmoid(self.model.alpha)
                         tau = 1 - tau_hat
-                        main_batch_x = batch_x[-1]
-                        loss_dict = criterion(main_batch_x[~mask], outputs[~mask], batch_y[~mask], 
-                                tau_hat, tau, self.args.c_norms)
-                        #loss_dict = criterion(batch_x, outputs[~mask], batch_y[~mask], tau_hat, tau, self.args.c_norms)
+                        loss_dict = criterion(batch_x, outputs[~mask], batch_y[~mask], tau_hat, tau, self.args.c_norms)
                         mse = loss_dict['total']
                     else:
                         mse = criterion(outputs[~mask], batch_y[~mask])
@@ -293,7 +287,7 @@ class Exp_Multiple_Regression_Fold(Exp_Basic):
         with torch.no_grad():
             for i, (batch_x, batch_y, time_gra, c_norm) in enumerate(vali_loader):
                 self.args.c_norms = c_norm.float().to(self.device)
-                batch_x = [x.float().to(self.device) for x in batch_x]
+                batch_x = batch_x.float().to(self.device)
                 batch_y = batch_y.float().to(self.device)
                 if self.args.model == 'AMD' or self.args.model == 'Path' or self.args.model == 'DUET':
                     outputs, _ = self.model(batch_x)
@@ -306,21 +300,16 @@ class Exp_Multiple_Regression_Fold(Exp_Basic):
                     batch_y = batch_y[:, -self.args.pred_len:, f_dim:]
                 
                 outputs = outputs.squeeze(-1)
-                batch_y = batch_y.squeeze(-1).squeeze(-1)
+                batch_y = batch_y.squeeze(-1)
                 mask = torch.zeros(batch_y.shape, dtype=torch.bool)
                 if batch_y.isnan().sum() > 0:
                     mask = torch.isnan(batch_y)
-                if mask.all():          
-                    continue
 
                 if self.args.loss == 'MSE_with_weak':
                     # mse = criterion(outputs[~mask], batch_y[~mask])
                     tau_hat = torch.sigmoid(self.model.alpha)
                     tau = 1 - tau_hat
-                    main_batch_x = batch_x[-1]
-                    loss_dict = criterion(main_batch_x[~mask], outputs[~mask], batch_y[~mask], 
-                                tau_hat, tau, self.args.c_norms)
-
+                    loss_dict = criterion(batch_x, outputs[~mask], batch_y[~mask], tau_hat, tau, self.args.c_norms)
                     loss = loss_dict['total']
                     mse_loss = loss_dict['mse']
                     v_loss = loss_dict['V_loss']
@@ -342,11 +331,6 @@ class Exp_Multiple_Regression_Fold(Exp_Basic):
                 if self.args.task_name == 'Long_term_forecasting':
                     pred = torch.sum(pred, dim=1)
                     true = torch.sum(true, dim=1)
-                
-                nan_mask = torch.isnan(true)
-                if nan_mask.any():
-                    pred = pred[~nan_mask]
-                    true = true[~nan_mask]
 
                 preds_list.append(pred)
                 trues_list.append(true)
@@ -394,7 +378,7 @@ class Exp_Multiple_Regression_Fold(Exp_Basic):
             with torch.no_grad():
                 for i, (batch_x, batch_y, time_gra, c_norm) in enumerate(test_loader):
                     # self.args.c_norms = c_norm.float().to(self.device)
-                    batch_x = [x.float().to(self.device) for x in batch_x]
+                    batch_x = batch_x.float().to(self.device)
                     batch_y = batch_y.float().to(self.device)
 
                     if self.args.model == 'AMD' or self.args.model == 'Path' or self.args.model == 'DUET':
