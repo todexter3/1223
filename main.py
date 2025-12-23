@@ -40,49 +40,47 @@ torch.set_num_threads(8)
 def main():
     if args.is_training == True:
         save_paths=args.save_path
-        for args.tau_hat_init in [1.0,2.0,3.0,4.0,0.0]: # [-5,5]之间
-           for args.d_model in [256,128,64]:   
-                for args.learning_rate in [1e-5,3e-5]:
-                    #for args.batch_size in [256,128]:
-                            for args.seq_len_list in [[120,90,60],[90,70,50]]:
-                                args.max_seq_len = max(args.seq_len_list)    
-                                        
-                                args.d_ff = int(args.d_model * 2)
-                                for args.patch_len in [16]:
-                                    args.stride = int(args.patch_len / 2)
-                                    args.ps = f'phiyhis{args.tau_hat_init}'
-                                    if args.data_type == 'daily':
+        for args.tau_hat_init in [1.0]: # [-5,5]之间
+            for args.learning_rate in [1e-4,1e-5,3e-5]:
+                for args.batch_size in [256,128]:
+                    for args.seq_len in [120,90,60,180]:    
+                        for args.d_model in [128]:                 
+                            args.d_ff = int(args.d_model * 2)
+                            for args.patch_len in [16]:
+                                args.stride = int(args.patch_len / 2)
+                                args.ps = f'phiyhis{args.tau_hat_init}'
+                                if args.data_type == 'daily':
+                            
+                                    args.pred_len = 1
+                                set_seed(args.seed)
+                                args.size = [args.seq_len, args.pred_len]
                                 
-                                        args.pred_len = 1
-                                    set_seed(args.seed)
-                                    args.size = [args.seq_len, args.pred_len]
-                                    
-                                    train_des = f"task{args.task_name}_{args.model}_start{args.train_start_year}_end{args.train_end_year}_test{args.test_year}_mlp{args.MLP_hidden}_lay{args.MLP_layers}_kfold{args.kfold}_seq{args.seq_len_list}_pred{args.pred_len}_freq{args.freq}_ep{args.train_epochs}_bs{args.batch_size}_early{args.patience}_lr{args.learning_rate}_wd{args.weight_decay}_"
-                                    model_des = f"dp{args.drop_ratio}_{args.features}_inv{args.individual}_dmo{args.d_model}_dff{args.d_ff}"
-                                    patching_des = f'_pl{args.patch_len}_sr{args.stride}_ps{args.ps}'
-                                    setting = train_des + model_des + patching_des
-                                    
-                                    args.save_path = os.path.join(save_paths, f'y{args.pred_task}/{args.model}_{setting}')
-                                    args.checkpoints = args.save_path
-                                    args.logs_dir = args.save_path + f'/logs'
-                                    if os.path.exists(args.save_path + '/pred.npy'):
-                                        continue
-                                    if not os.path.exists(args.save_path):
-                                        os.makedirs(args.save_path)
-                                    if not os.path.exists(args.logs_dir):
-                                        os.makedirs(args.logs_dir)
-                                    print('args in experiment:')
-                                    print(args)
-                                    with open(f'{args.save_path}/_result_of_multiple_regression.txt', 'a') as file:
-                                        file.write('args in experiment:\n' + f'{args}\n\n')
-                                    
-                                    Exp = Exp_Multiple_Regression_Fold
-                                    exp = Exp(args)  # set experiments
-                                    print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-                                    exp.train(setting)
-                                    print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-                                    exp.test(setting)
-                                    torch.cuda.empty_cache()
+                                train_des = f"task{args.task_name}_{args.model}_start_year{args.train_start_year}_end_year{args.train_end_year}_test_year{args.test_year}_mlp{args.MLP_hidden}_lay{args.MLP_layers}_kfold{args.kfold}_seq{args.seq_len}_pred{args.pred_len}_freq{args.freq}_ep{args.train_epochs}_bs{args.batch_size}_early{args.patience}_lr{args.learning_rate}_wd{args.weight_decay}_"
+                                model_des = f"dp{args.drop_ratio}_{args.features}_inv{args.individual}_dmo{args.d_model}_dff{args.d_ff}"
+                                patching_des = f'_pl{args.patch_len}_sr{args.stride}_ps{args.ps}'
+                                setting = train_des + model_des + patching_des
+                                
+                                args.save_path = os.path.join(save_paths, f'y{args.pred_task}/{args.model}_{setting}')
+                                args.checkpoints = args.save_path
+                                args.logs_dir = args.save_path + f'/logs'
+                                if os.path.exists(args.save_path + '/pred.npy'):
+                                    continue
+                                if not os.path.exists(args.save_path):
+                                    os.makedirs(args.save_path)
+                                if not os.path.exists(args.logs_dir):
+                                    os.makedirs(args.logs_dir)
+                                print('args in experiment:')
+                                print(args)
+                                with open(f'{args.save_path}/_result_of_multiple_regression.txt', 'a') as file:
+                                    file.write('args in experiment:\n' + f'{args}\n\n')
+                                
+                                Exp = Exp_Multiple_Regression_Fold
+                                exp = Exp(args)  # set experiments
+                                print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
+                                exp.train(setting)
+                                print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+                                exp.test(setting)
+                                torch.cuda.empty_cache()
 
     else:
         print('test')
@@ -223,7 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('--extra_input',type = bool, default=False, help='whether to add tikcter')
 
     # Forecast task
-    parser.add_argument('--seq_len', type=int, default=128, help='input sequence length')
+    parser.add_argument('--seq_len', type=int, default=64, help='input sequence length')
     parser.add_argument('--pred_len', type=int, default=1, help='prediction sequence length')
 
     # model define
@@ -325,7 +323,6 @@ if __name__ == '__main__':
     parser.add_argument('--patch_size_list', nargs='+', type=int, default=[16,12,8,32,12,8,6,4,8,6,4,2])
     parser.add_argument('--num_nodes', type=int, default=9)
 
-    
     parser.add_argument('--tfactor', type = int, default = 5, help = 'expansion factor in the patch mixer')
     parser.add_argument('--dfactor', type = int, default = 5, help = 'expansion factor in the embedding mixer')
     parser.add_argument('--wavelet', type = str, default = 'db2', help = 'wavelet type for wavelet transform')
@@ -336,10 +333,10 @@ if __name__ == '__main__':
     # optimization
     parser.add_argument('--num_workers', type=int, default=8, help='data loader num workers')
     parser.add_argument('--train_epochs', type=int, default=60, help='train epochs')
-    parser.add_argument('--batch_size', type=int, default=128, help='batch size of train input data')
+    parser.add_argument('--batch_size', type=int, default=32, help='batch size of train input data')
     parser.add_argument('--early_open', type=bool, default=True)
     parser.add_argument('--patience', type=int, default=10, help='early stopping patience')
-    parser.add_argument('--learning_rate', type=float, default=0.00001, help='optimizer learning rate')
+    parser.add_argument('--learning_rate', type=float, default=0.005, help='optimizer learning rate')
     parser.add_argument('--optim_type', type=str, default='Adam', help='select optimizer type, optional[SGD, Adam]')
     parser.add_argument('--weight_decay', type=float, default=1e-5, help='weight decay value')
     parser.add_argument('--loss', type=str, default='MSE_with_weak', help='loss function, optional[ MSE, MAE, CCC]')
@@ -347,7 +344,6 @@ if __name__ == '__main__':
                         help='adjust learning rate, optional:[type1, type2, not, cos, steplr]')
     parser.add_argument('--clip_value', type=float, default=0.5, help='clip grad')
     parser.add_argument('--pct_start', type=int, default=0.6)
-
     # GPU
     parser.add_argument('--use_gpu', type=bool, default=True, help='use gpu')
     parser.add_argument('--gpu', type=int, default=0, help='gpu')
@@ -358,8 +354,8 @@ if __name__ == '__main__':
     # heiyi
     parser.add_argument('--save_path', type=str, default='data/results/', help='train start year')
     parser.add_argument('--train_start_year', type=str, default='2010', help='train start year')
-    parser.add_argument('--train_end_year', type=str, default='2019', help='train end year')
-    parser.add_argument('--test_year', type=str, default= None, help='test year')
+    parser.add_argument('--train_end_year', type=str, default='2024', help='train end year')
+    parser.add_argument('--test_year', type=str, default= '2024', help='test year')
     parser.add_argument('--val_start_year', type=str, default='2014', help='vali start year')
     parser.add_argument('--use_original_feature', action='store_true', help='use automatic mixed precision training', default=False)
     parser.add_argument('--kfold', action='store_true', help='use kfold', default=True)
@@ -379,9 +375,8 @@ if __name__ == '__main__':
     parser.add_argument('--data_new', type=str, default='5', help='data_new')
     parser.add_argument('--ticker_type', type=int, default=3, help='ticker_type')
     parser.add_argument('--tau_hat_init', type=float, default=0.0, help='tau_hat_init')
-    parser.add_argument('--noise_scale', type=float, default=0.05, help='noise_scale')
     parser.add_argument('--load_checkpoint', type=str, default=None, help='Path to the checkpoint file to load for continuing training')
-    parser.add_argument('--seq_len_list', type=int, nargs='+', default=[120,90,60],help='input list of sequence lengths')
+    
     args = parser.parse_args()
 
     '''
@@ -440,4 +435,5 @@ if __name__ == '__main__':
     print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
     
     main()
+    
     
